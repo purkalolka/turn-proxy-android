@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -25,18 +27,21 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freeturn.app.R
+import com.freeturn.app.data.AppPreferences
 import com.freeturn.app.data.CoreCommand
 import com.freeturn.app.data.config.ObfProfile
 import com.freeturn.app.data.config.toCoreJson
@@ -50,6 +55,7 @@ import com.freeturn.app.ui.components.SettingsContentMaxWidth
 import com.freeturn.app.ui.components.SettingsGroup
 import com.freeturn.app.ui.components.SettingsGroupItem
 import com.freeturn.app.ui.components.SettingsSwitchRow
+import com.freeturn.app.ui.util.Clipboard
 import com.freeturn.app.ui.util.redact
 import com.freeturn.app.viewmodel.server.ServerHubState
 import com.freeturn.app.viewmodel.server.ServerViewModel
@@ -173,6 +179,8 @@ private fun NerdContent(
         }
     }
 
+    ClientIdCard(server = server, privacyMode = privacyMode)
+
     if (online != null) CoreStateCard(online, privacyMode)
 
     LaunchParamsCard(server, privacyMode)
@@ -188,6 +196,61 @@ private fun NerdContent(
             onFetchJournal = onFetchJournal,
             onClear = onClearLog
         )
+    }
+}
+
+@Composable
+private fun ClientIdCard(server: Server, privacyMode: Boolean) {
+    val context = LocalContext.current
+    val prefs: AppPreferences = koinInject()
+    val ownClientId by produceState(initialValue = "") {
+        value = prefs.ownClientId()
+    }
+    val effectiveCid = server.client.clientId.ifBlank { ownClientId }
+
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Text(stringResource(R.string.nerd_client_id_label), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.nerd_client_id_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = effectiveCid.redact(privacyMode),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = {
+                        if (effectiveCid.isNotBlank()) {
+                            Clipboard.copy(context, effectiveCid, context.getString(R.string.nerd_client_id_copied))
+                            HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
+                        }
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.content_copy_24px),
+                        contentDescription = stringResource(R.string.copy)
+                    )
+                }
+            }
+        }
     }
 }
 

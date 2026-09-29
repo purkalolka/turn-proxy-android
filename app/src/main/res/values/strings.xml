@@ -411,6 +411,9 @@
     <string name="nerd_state_stopped">Остановлен</string>
     <string name="nerd_state_not_installed">Не установлено</string>
     <string name="nerd_version_label">Версия</string>
+    <string name="nerd_client_id_label">Client ID устройства</string>
+    <string name="nerd_client_id_desc">Идентификатор сессии клиента для авторизации на сервере и генерации персоны обхода капчи</string>
+    <string name="nerd_client_id_copied">Client ID скопирован в буфер обмена</string>
     <string name="nerd_launch_params">Параметры запуска</string>
     <string name="nerd_launch_server">Сервер</string>
     <string name="nerd_launch_client">Клиент</string>
