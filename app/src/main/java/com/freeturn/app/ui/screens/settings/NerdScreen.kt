@@ -55,7 +55,7 @@ import com.freeturn.app.ui.components.SettingsContentMaxWidth
 import com.freeturn.app.ui.components.SettingsGroup
 import com.freeturn.app.ui.components.SettingsGroupItem
 import com.freeturn.app.ui.components.SettingsSwitchRow
-import com.freeturn.app.ui.util.Clipboard
+import com.freeturn.app.ui.util.copyToClipboard
 import com.freeturn.app.ui.util.redact
 import com.freeturn.app.viewmodel.server.ServerHubState
 import com.freeturn.app.viewmodel.server.ServerViewModel
@@ -239,7 +239,7 @@ private fun ClientIdCard(server: Server, privacyMode: Boolean) {
                 IconButton(
                     onClick = {
                         if (effectiveCid.isNotBlank()) {
-                            Clipboard.copy(context, effectiveCid, context.getString(R.string.nerd_client_id_copied))
+                            context.copyToClipboard("client_id", effectiveCid, sensitive = false)
                             HapticUtil.perform(context, HapticUtil.Pattern.CLICK)
                         }
                     }
