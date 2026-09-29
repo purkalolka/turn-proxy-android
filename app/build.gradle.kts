@@ -50,6 +50,15 @@ android {
     }
 
     signingConfigs {
+        // Стабильный dev-ключ из репозитория. Нужен, чтобы сборки из разных
+        // запусков CI (и локальные) имели одну подпись и обновляли друг друга:
+        // android не ставит APK поверх приложения с другой подписью.
+        create("dev") {
+            storeFile = rootProject.file("dev-keystore.jks")
+            storePassword = "freeturn"
+            keyAlias = "freeturn"
+            keyPassword = "freeturn"
+        }
         if (keystorePropsFile.exists()) {
             create("release") {
                 storeFile = file(keystoreProps.getProperty("storeFile"))
@@ -65,10 +74,12 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             resValue("string", "app_name", "FreeTurn Debug")
+            signingConfig = signingConfigs.getByName("dev")
         }
         release {
             resValue("string", "app_name", "FreeTurn")
-            signingConfig = signingConfigs.findByName("release")
+            // Без keystore.properties остаётся стабильная dev-подпись, а не unsigned APK.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("dev")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
