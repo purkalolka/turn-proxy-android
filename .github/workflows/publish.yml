@@ -1,0 +1,86 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Тег релиза, например v4.3.0-vkcalls'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: "17"
+  # Ядро качается из релизов free-turn-proxy; токен - против anonymous rate limit API
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build-and-publish:
+    name: Build APKs & publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Подпись стабильным ключом dev-keystore.jks из репозитория: секреты не нужны,
+      # а релизы ставятся обновлением поверх предыдущих сборок (та же подпись).
+      - name: Assemble release APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease
+
+      # Имя ассета обязано содержать ABI - AppUpdater выбирает APK по Build.SUPPORTED_ABIS
+      - name: Collect APKs
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          mkdir -p dist
+          for abi in arm64-v8a armeabi-v7a; do
+            cp "app/build/outputs/apk/release/app-${abi}-release.apk" "dist/freeturn-${VERSION}-${abi}.apk"
+          done
+          cd dist && sha256sum *.apk > checksums.txt && cat checksums.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          cat > notes.md <<'EOF'
+          Ядро собрано с обходом капчи VK Calls — авторизация проходит сразу.
+
+          ### Что внутри
+          - Ядро `v340-vkcalls` из [purkalolka/free-turn-proxy](https://github.com/purkalolka/free-turn-proxy):
+            `auth.getAnonymToken` / `messages.getAnonymCallToken` с `client_id=8093730`.
+          - Стабильная подпись: APK из этого и последующих релизов ставятся обновлением
+            поверх друг друга, удалять приложение не нужно.
+
+          ### Установка
+          Скачай APK под свой процессор:
+          - `freeturn-*-arm64-v8a.apk` — современные телефоны (Pixel, Snapdragon 8xx и т.п.)
+          - `freeturn-*-armeabi-v7a.apk` — только старые 32-битные устройства
+
+          На 64-битных устройствах без поддержки 32 бит (например Pixel 6a) версия
+          armeabi-v7a не установится — нужен arm64-v8a.
+
+          Контрольные суммы: `checksums.txt`.
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" dist/* \
+              --title "FreeTurn ${TAG#v}" \
+              --notes-file notes.md
+          fi
