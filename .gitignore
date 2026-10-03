@@ -12,6 +12,10 @@ keystore.properties
 *.jks
 *.keystore
 
+# Stable dev signing key is intentionally committed: without it every CI run
+# gets a throwaway debug key and APKs stop installing over each other.
+!dev-keystore.jks
+
 # Android Studio / IntelliJ
 .idea/
 *.iml
