@@ -15,13 +15,13 @@ detect_arch() {
     case "$m" in
         x86_64|amd64) echo "server-linux-amd64" ;;
         aarch64|arm64) echo "server-linux-arm64" ;;
-        armv7l|armv6l|armv5*|arm) echo "server-linux-arm" ;;
+        armv7l|armv6l|armv5*|arm) echo "server-linux-armv7" ;;
         i386|i486|i586|i686) echo "server-linux-386" ;;
         riscv64) echo "server-linux-riscv64" ;;
         mips64|mips64le)
-            if _mips_is_le; then echo "server-linux-mips64le"; else echo ""; return 1; fi ;;
+            if _mips_is_le; then echo "server-linux-mips64le-softfloat"; else echo ""; return 1; fi ;;
         mips|mipsel|mipsle)
-            if _mips_is_le; then echo "server-linux-mipsle"; else echo "server-linux-mips"; fi ;;
+            if _mips_is_le; then echo "server-linux-mipsle-softfloat"; else echo "server-linux-mips-softfloat"; fi ;;
         *) echo ""; return 1 ;;
     esac
 }

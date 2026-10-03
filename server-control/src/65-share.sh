@@ -30,13 +30,17 @@ _peer_marked() {  # CONF PUBKEY
 # Один элемент массива peers. Видит локали peers_json (динамический scope bash).
 _peers_flush() {
     if [ "$in_peer" = 1 ] && [ -n "$pub" ]; then
-        local h conf_yes el
+        local h t conf_yes el
         h=$(printf '%s\n' "$hs" | awk -v p="$pub" '$1==p{print $2}')
+        # rx/tx (байты) из `wg show transfer`: "<pub> <rx> <tx>". Только цифры - в JSON без кавычек.
+        t=$(printf '%s\n' "$xfer" | awk -v p="$pub" '$1==p{print $2" "$3}')
+        case "$t" in *[!0-9\ ]*) t="" ;; esac
         if [ -f "$SHARE_DIR/$(_pub_fs "$pub").conf" ]; then conf_yes=true; else conf_yes=false; fi
         el="{\"pub\":\"$(esc "$pub")\""
         if [ -n "$name" ]; then el="$el,\"name_b64\":\"$(esc "$name")\""; fi
         if [ -n "$ip" ]; then el="$el,\"ip\":\"$(esc "$ip")\""; fi
         if [ -n "$h" ] && [ "$h" != 0 ]; then el="$el,\"hs\":$h"; fi
+        if [ -n "$t" ]; then el="$el,\"rx\":${t% *},\"tx\":${t#* }"; fi
         el="$el,\"has_conf\":$conf_yes}"
         if [ "$first" = 1 ]; then first=0; else _PEERS_OUT="$_PEERS_OUT,"; fi
         _PEERS_OUT="$_PEERS_OUT$el"
@@ -48,9 +52,10 @@ _peers_flush() {
 # (без форк-пайпов tr|sed на каждую строку - сотни форков на больших списках).
 peers_json() {
     if ! wg_present || ! wg_is_ours; then printf '[]'; return 0; fi
-    local hs="" _PEERS_OUT="" first=1 in_peer=0 pub="" name="" ip="" raw line val
+    local hs="" xfer="" _PEERS_OUT="" first=1 in_peer=0 pub="" name="" ip="" raw line val
     if command -v wg >/dev/null 2>&1; then
         hs=$(wg show "$WG_IFACE" latest-handshakes 2>/dev/null || true)
+        xfer=$(wg show "$WG_IFACE" transfer 2>/dev/null || true)
     fi
     while IFS= read -r raw || [ -n "$raw" ]; do
         line=${raw//$'\r'/}

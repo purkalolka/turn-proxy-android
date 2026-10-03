@@ -61,8 +61,9 @@ jobs:
           Ядро собрано с обходом капчи VK Calls — авторизация проходит сразу.
 
           ### Что внутри
-          - Ядро `v340-vkcalls` из [purkalolka/free-turn-proxy](https://github.com/purkalolka/free-turn-proxy):
-            `auth.getAnonymToken` / `messages.getAnonymCallToken` с `client_id=8093730`.
+          - Ядро `v341-vkcalls` из [purkalolka/free-turn-proxy](https://github.com/purkalolka/free-turn-proxy):
+            - Обход капчи VK Calls (`auth.getAnonymToken` / `messages.getAnonymCallToken` с `client_id=8093730`).
+            - Безопасность ядра: DTLS leaf certificate fingerprint pinning, защита от атак повтора (128-bit sliding window anti-replay), безопасные права доступа.
           - Стабильная подпись: APK из этого и последующих релизов ставятся обновлением
             поверх друг друга, удалять приложение не нужно.
 

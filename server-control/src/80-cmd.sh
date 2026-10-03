@@ -13,6 +13,9 @@ ARG_NAME_B64=""
 ARG_PUBKEY=""
 ARG_CLIENT_ID=""
 ARG_SHA256=""
+# Бинарник, который клиент скачал сам и залил по SSH (у VPS плохой канал до GitHub).
+ARG_LOCAL_BIN=""
+ARG_LOCAL_VER=""
 ARG_DNS="1.1.1.1"
 ARG_WITH_WG_PKG=0
 ARG_DRY_RUN=0
@@ -74,6 +77,12 @@ parse_args() {
             --sha256=*)
                 ARG_SHA256="${1#*=}"
                 [[ "$ARG_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || fail bad_arg "bad --sha256 (need 64 hex)" ;;
+            --local-bin=*)
+                ARG_LOCAL_BIN="${1#*=}"
+                [[ "$ARG_LOCAL_BIN" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail bad_arg "bad --local-bin (need absolute path)" ;;
+            --local-ver=*)
+                ARG_LOCAL_VER="${1#*=}"
+                [[ "$ARG_LOCAL_VER" =~ ^[A-Za-z0-9._-]+$ ]] || fail bad_arg "bad --local-ver" ;;
             --dns=*)
                 ARG_DNS="${1#*=}"
                 [[ "$ARG_DNS" =~ ^[0-9a-zA-Z.:,_-]+$ ]] || fail bad_arg "bad --dns" ;;
@@ -182,6 +191,14 @@ cmd_wg_setup() {
     ok
 }
 
+# Положить проверенный бинарник на место (старый - в .bak для отката при неудачном старте).
+_place_binary() {  # TMP BIN VER
+    chmod +x "$1"
+    [ -f "$2" ] && cp -f "$2" "$2.bak" 2>/dev/null || true
+    mv -f "$1" "$2"
+    echo "$3" > "$VERFILE"
+}
+
 cmd_install() {
     stage install
     [ "$(id -u 2>/dev/null || echo -1)" -eq 0 ] || fail needs_root "install requires root"
@@ -194,35 +211,43 @@ cmd_install() {
     latest_url="$BASE_URL/$name"
     [ -f "$VERFILE" ] && curver=$(cat "$VERFILE" 2>/dev/null || true)
 
-    log "resolving latest version"
-    ver=$(_resolve_version "$latest_url")
-    if [ -z "$ver" ]; then
-        if [ -x "$bin" ]; then
-            log "version resolve failed; using installed binary"
-            ver="${curver:-installed}"; cached=1
-        else
-            fail version_resolve_failed "cannot resolve latest version (no Location from $BASE_URL)"
-        fi
-    elif [ -x "$bin" ] && [ "$ver" = "$curver" ]; then
-        cached=1
-    fi
-
-    # Качаем по тегу (не latest): релиз мог переехать между резолвом и загрузкой.
-    asset_url="$RELEASES_URL/download/$ver/$name"
-    if [ "$cached" = 0 ]; then
-        log "downloading $name @ $ver"
-        tmp=$(mktemp "$bin.XXXXXX" 2>/dev/null) || tmp="$bin.new.$$"
-        if ! _dl "$asset_url" "$tmp"; then
-            if ! _dl "$latest_url" "$tmp"; then rm -f "$tmp"; fail download_failed "binary download failed"; fi
-        fi
-        _verify_download "$tmp" "$ARG_SHA256"
-        chmod +x "$tmp"
+    if [ -n "$ARG_LOCAL_BIN" ]; then
+        # Клиент сам скачал бинарник и залил по SSH: проверяем и ставим без сети.
+        [ -f "$ARG_LOCAL_BIN" ] || fail bad_arg "--local-bin: file not found"
+        ver="${ARG_LOCAL_VER:-local}"
+        log "installing uploaded $name @ $ver"
+        _verify_download "$ARG_LOCAL_BIN" "$ARG_SHA256"
         with_lock
-        [ -f "$bin" ] && cp -f "$bin" "$bin.bak" 2>/dev/null || true
-        mv -f "$tmp" "$bin"
-        echo "$ver" > "$VERFILE"
+        _place_binary "$ARG_LOCAL_BIN" "$bin" "$ver"
     else
-        with_lock
+        log "resolving latest version"
+        ver=""
+        if _github_reachable; then
+            ver=$(_resolve_version "$latest_url")
+        else
+            log "GitHub is not reachable from this server"
+        fi
+        if [ -z "$ver" ]; then
+            if [ -x "$bin" ]; then
+                log "version resolve failed; using installed binary"
+                ver="${curver:-installed}"; cached=1
+            else
+                fail version_resolve_failed "cannot resolve latest version (GitHub unreachable from this server or no release found)"
+            fi
+        elif [ -x "$bin" ] && [ "$ver" = "$curver" ]; then
+            cached=1
+        fi
+
+        asset_url="$RELEASES_URL/download/$ver/$name"
+        if [ "$cached" = 0 ]; then
+            log "downloading $name @ $ver"
+            tmp=$(mktemp "$bin.XXXXXX" 2>/dev/null) || tmp="$bin.new.$$"
+            _fetch_verified "$asset_url" "$latest_url" "$tmp" "$ver" "$name"
+            with_lock
+            _place_binary "$tmp" "$bin" "$ver"
+        else
+            with_lock
+        fi
     fi
 
     local was_running=false
@@ -323,6 +348,8 @@ cmd_share_info() { stage share_info; share_info_emit; ok; }
 cmd_share_list() {
     stage share_list
     d_raw peers "$(peers_json)"
+    # Часы сервера: "N минут назад" считается от них, а не от часов клиента.
+    d_num now "$(date +%s)"
     local sp cj
     sp=$(_self_pub)
     if [ -n "$sp" ]; then d_str self_pub "$sp"; fi

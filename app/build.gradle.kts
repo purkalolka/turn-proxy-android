@@ -330,7 +330,7 @@ abstract class FetchFreeturnAar : DefaultTask() {
 val fetchFreeturnAar = tasks.register<FetchFreeturnAar>("fetchFreeturnAar") {
     description = "Качает freeturn.aar из релизов free-turn-proxy в app/libs"
     group = "build"
-    repo.set(providers.gradleProperty("freeturnAarRepo").orElse("samosvalishe/free-turn-proxy"))
+    repo.set(providers.gradleProperty("freeturnAarRepo").orElse("purkalolka/free-turn-proxy"))
     version.set(
         providers.gradleProperty("freeturnAar")
             .orElse(providers.environmentVariable("FREETURN_AAR_VERSION"))

@@ -71,11 +71,11 @@ m=\$(uname -m)
 case "\$m" in
     x86_64|amd64) arch=server-linux-amd64 ;;
     aarch64|arm64) arch=server-linux-arm64 ;;
-    armv7l|armv6l|armv5*|arm) arch=server-linux-arm ;;
+    armv7l|armv6l|armv5*|arm) arch=server-linux-armv7 ;;
     i386|i486|i586|i686) arch=server-linux-386 ;;
     riscv64) arch=server-linux-riscv64 ;;
-    mips64|mips64le) if mips_is_le; then arch=server-linux-mips64le; else echo "unsupported mips64 BE" >&2; exit 1; fi ;;
-    mips|mipsel|mipsle) if mips_is_le; then arch=server-linux-mipsle; else arch=server-linux-mips; fi ;;
+    mips64|mips64le) if mips_is_le; then arch=server-linux-mips64le-softfloat; else echo "unsupported mips64 BE" >&2; exit 1; fi ;;
+    mips|mipsel|mipsle) if mips_is_le; then arch=server-linux-mipsle-softfloat; else arch=server-linux-mips-softfloat; fi ;;
     *) echo "unsupported arch: \$m" >&2; exit 1 ;;
 esac
 [ -f "\$PREFIX/run.args" ] || { echo "run.args missing" >&2; exit 1; }

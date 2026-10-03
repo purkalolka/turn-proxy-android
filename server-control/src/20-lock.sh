@@ -6,7 +6,11 @@ with_lock() {
     [ -d "$PREFIX" ] || mkdir -p "$PREFIX" 2>/dev/null || return 0
     [ -w "$PREFIX" ] || return 0
     exec 8>"$LOCKFILE" 2>/dev/null || return 0
-    flock -w 300 8 2>/dev/null || true
+    # Ждём молча - выглядит как зависание. Скажем, на что именно ждём.
+    if ! flock -n 8 2>/dev/null; then
+        log "waiting for another control run to finish"
+        flock -w 300 8 2>/dev/null || log "lock wait timed out; continuing"
+    fi
 }
 
 with_peers_lock() {

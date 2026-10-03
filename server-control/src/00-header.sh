@@ -39,8 +39,9 @@ WG_CLIENT_CONF="$PREFIX/wireguard-client.conf"
 # сервер->клиент рвётся фрагментацией. 1280 - минимум IPv6, живёт на любом пути.
 WG_MTU="${FT_WG_MTU:-1280}"
 
-RELEASES_URL="https://github.com/samosvalishe/free-turn-proxy/releases"
+RELEASES_URL="https://github.com/purkalolka/free-turn-proxy/releases"
 BASE_URL="$RELEASES_URL/latest/download"
+API_LATEST_URL="https://api.github.com/repos/purkalolka/free-turn-proxy/releases/latest"
 
 # secure_path в sudo срезает /usr/local/* (userspace-WG, ss).
 PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
